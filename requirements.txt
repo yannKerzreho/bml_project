@@ -1,5 +1,5 @@
 matplotlib
-sklearn
+scikit-learn
 tqdm
 typing
 jax
@@ -7,4 +7,3 @@ equinox
 diffrax
 sbibm
 torch
-numpy=1.24.4
