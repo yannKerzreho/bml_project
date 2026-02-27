@@ -5,6 +5,9 @@ typing
 jax
 equinox
 diffrax
+optax
 sbibm
+future
 torch
 numpy==1.24.4
+ipywidgets
