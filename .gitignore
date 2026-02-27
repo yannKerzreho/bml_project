@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# Environnements virtuels (au cas où)
+venv/
+.venv/
+env/
+
+# Pour des fichier test
+*test*
