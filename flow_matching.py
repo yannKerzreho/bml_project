@@ -6,13 +6,9 @@ import optax
 from typing import Literal, List
 
 
-# ---------------------------------------------------------------------------
 # Réseau vecteur champ conditionné sur (t, θ, x)
-# ---------------------------------------------------------------------------
-
 NormType = Literal["none", "layer", "spectral"]
-
-# 1. Define a single Block [(Linear -> Norm -> Activation) * depth]+ [Skip]
+# 1. Define a single Block [(Linear -> Norm -> Activation) * depth] + [Skip]
 class FlowBlock(eqx.Module):
     linears: tuple
     norms: tuple
@@ -60,7 +56,6 @@ class FlowBlock(eqx.Module):
                 
             h_main = self.norms[i](h_main)
             
-            # Il faut passer une clé unique pour chaque couche de dropout
             if not inference and key is not None:
                 step_key = jax.random.fold_in(key, i)
                 h_main = self.dropouts[i](h_main, key=step_key, inference=inference)
@@ -102,7 +97,7 @@ class VectorFieldNetwork(eqx.Module):
                     in_dim=dims[i], 
                     out_dim=dims[i+1], 
                     orig_in_dim=orig_in_dim,
-                    depth=depth_per_block, # Pass the inner depth!
+                    depth=depth_per_block,
                     norm_type=norm_type, 
                     key=keys[i],
                     dropout=dropout
@@ -139,10 +134,7 @@ class VectorFieldNetwork(eqx.Module):
         return out, state
 
 
-# ---------------------------------------------------------------------------
 # Perte FMPE — Eq. (7) du papier
-# ---------------------------------------------------------------------------
-
 def fmpe_loss(
     model: VectorFieldNetwork,
     state: eqx.nn.State,
@@ -210,10 +202,8 @@ def train_step(
     model = eqx.apply_updates(model, updates)
     return model, state, opt_state, loss
 
-# ---------------------------------------------------------------------------
-# Echantillonnage posterior — intégration ODE de t=0 à t=1
-# ---------------------------------------------------------------------------
 
+# Echantillonnage posterior — intégration ODE de t=0 à t=1
 @eqx.filter_jit
 def sample_posterior(
     model: VectorFieldNetwork,
@@ -256,3 +246,30 @@ def sample_posterior_batch(
     return jax.vmap(
         lambda k: sample_posterior(model, state, x_obs, k, theta_dim, rtol, atol)
     )(keys)
+
+# Sample posterior and return the number of network passes
+@eqx.filter_jit
+def sample_posterior_with_stats(
+    model, state, x_obs, key, num_samples, theta_dim, rtol, atol
+):
+    keys = jax.random.split(key, num_samples)
+    
+    def single_sample(k):
+        theta_0 = jax.random.normal(k, shape=(theta_dim,))
+        
+        def vector_field_wrapper(t, y, args):
+            v_t, _ = model(t, y, x_obs, state, inference=True)
+            return v_t
+        
+        sol = diffrax.diffeqsolve(
+            diffrax.ODETerm(vector_field_wrapper),
+            diffrax.Dopri5(),
+            t0=0.0, t1=1.0, dt0=0.01,
+            y0=theta_0,
+            stepsize_controller=diffrax.PIDController(rtol=rtol, atol=atol),
+            max_steps=2000
+        )
+        return sol.ys[-1], sol.stats["num_steps"] * 6
+
+    samples, nfe_array = jax.vmap(single_sample)(keys)
+    return samples, jnp.mean(nfe_array)
