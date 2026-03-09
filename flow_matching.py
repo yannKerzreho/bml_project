@@ -250,12 +250,15 @@ def sample_posterior_batch(
 # Sample posterior and return the number of network passes
 @eqx.filter_jit
 def sample_posterior_with_stats(
-    model, state, x_obs, key, num_samples, theta_dim, rtol, atol
+    model, state, x_obs, key, num_samples, theta_dim, rtol, atol, path_type='normal'
 ):
     keys = jax.random.split(key, num_samples)
     
     def single_sample(k):
-        theta_0 = jax.random.normal(k, shape=(theta_dim,))
+        if path_type == "uniform":
+            theta_0 = jax.random.uniform(k, shape=(theta_dim,), minval=-1.0, maxval=1.0)
+        else:
+            theta_0 = jax.random.normal(k, shape=(theta_dim,))
         
         def vector_field_wrapper(t, y, args):
             v_t, _ = model(t, y, x_obs, state, inference=True)
