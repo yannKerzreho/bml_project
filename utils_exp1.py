@@ -270,9 +270,9 @@ def plot_compare(results_good, results_bad, eval_steps, tol=1e-5, norm="none"):
 
     axs1[0].set_xscale('log')
     axs1[0].set_yscale('log')
-    axs1[0].set_title("KL vs Iterations (Good vs Bad)")
+    axs1[0].set_title("Training Loss vs Iterations (Good vs Bad)")
     axs1[0].set_xlabel("Iterations (Log)")
-    axs1[0].set_ylabel("KL Divergence (Log)")
+    axs1[0].set_ylabel("MSE Loss (Log)")
     axs1[0].legend()
     axs1[0].grid(True, which="both", ls="--", alpha=0.5)
 
