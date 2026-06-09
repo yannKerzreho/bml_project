@@ -4,14 +4,17 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Jupyter Notebooks
+# Jupyter
 .ipynb_checkpoints/
 */.ipynb_checkpoints/
 
-# Environnements virtuels (au cas où)
+# Virtual environments
 venv/
 .venv/
 env/
 
-# Pour des fichier test
+# Large assets — keep out of git
+*.pdf
+
+# Test files
 *test*
