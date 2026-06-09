@@ -74,9 +74,15 @@ def c2st(
     Classifier two-sample test.
     Trains a Random Forest to distinguish p from q.
     Returns accuracy ∈ [0.5, 1.0] — 0.5 means indistinguishable (perfect posterior).
+
+    Subsamples both sets to min(|p|, |q|) to avoid class imbalance (the sbibm
+    reference posterior has 10k samples; eval_samples is typically smaller).
     """
+    n = min(len(samples_p), len(samples_q))
+    samples_p = samples_p[:n]
+    samples_q = samples_q[:n]
     X = np.concatenate([samples_p.numpy(), samples_q.numpy()])
-    y = np.concatenate([np.zeros(len(samples_p)), np.ones(len(samples_q))])
+    y = np.concatenate([np.zeros(n), np.ones(n)])
     clf = RandomForestClassifier(n_estimators=100, n_jobs=-1, random_state=seed)
     acc = cross_val_score(clf, X, y, cv=n_folds, scoring="accuracy").mean()
     return torch.tensor(acc, dtype=torch.float32)

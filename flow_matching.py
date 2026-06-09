@@ -211,23 +211,27 @@ def sample_posterior_batch(
     rtol: float = 1e-7,
     atol: float = 1e-7,
 ) -> jax.Array:
-    """Draw `num_samples` posterior samples in parallel via vmap."""
+    """Draw `num_samples` posterior samples in parallel via vmap.
+
+    WARNING: vmap(num_samples) compiles a computation graph proportional to
+    num_samples × model_width.  For large num_samples this OOMs on GPU.
+    Prefer sample_posterior_with_stats which uses chunked vmap.
+    """
     keys = jax.random.split(key, num_samples)
     return jax.vmap(lambda k: sample_posterior(model, state, x_obs, k, theta_dim, rtol, atol))(keys)
 
 
 @eqx.filter_jit
-def sample_posterior_with_stats(
-    model, state, x_obs, key, num_samples, theta_dim, rtol, atol, path_type="normal"
-):
-    """Returns (samples, mean_NFE). NFE = number of function evaluations per ODE solve."""
-    keys = jax.random.split(key, num_samples)
+def _sample_chunk(model, state, x_obs, chunk_keys, theta_dim, rtol, atol):
+    """JIT-compiled vmap over exactly chunk_size ODE solves.
 
+    Keeping JIT at the chunk level (not the full num_samples level) is the key
+    memory optimisation: vmap(500) compiles a 10× smaller XLA graph than
+    vmap(5000) and uses proportionally less GPU RAM.
+    Recompiles only when (model structure, chunk_size, theta_dim, rtol, atol) changes.
+    """
     def single_sample(k):
-        if path_type == "uniform":
-            theta_0 = jax.random.uniform(k, shape=(theta_dim,), minval=-1.0, maxval=1.0)
-        else:
-            theta_0 = jax.random.normal(k, shape=(theta_dim,))
+        theta_0 = jax.random.normal(k, shape=(theta_dim,))
 
         def vector_field(t, y, args):
             v_t, _ = model(t, y, x_obs, state, inference=True)
@@ -239,9 +243,31 @@ def sample_posterior_with_stats(
             t0=0.0, t1=1.0, dt0=0.01,
             y0=theta_0,
             stepsize_controller=diffrax.PIDController(rtol=rtol, atol=atol),
-            max_steps=2000,
+            max_steps=1024,
         )
         return sol.ys[-1], sol.stats["num_steps"] * 6  # ×6 for Dopri5 stages
 
-    samples, nfe_array = jax.vmap(single_sample)(keys)
-    return samples, jnp.mean(nfe_array)
+    return jax.vmap(single_sample)(chunk_keys)   # (chunk_size, θ_dim), (chunk_size,)
+
+
+def sample_posterior_with_stats(
+    model, state, x_obs, key, num_samples, theta_dim,
+    rtol=1e-7, atol=1e-7, chunk_size=500,
+):
+    """Draw num_samples posterior samples, returning (samples, mean_NFE).
+
+    Samples are drawn in sequential chunks of chunk_size via vmap, then
+    concatenated.  GPU memory is O(chunk_size × model_width) regardless of
+    num_samples.  num_samples is silently rounded down to the nearest multiple
+    of chunk_size.
+    """
+    n = (num_samples // chunk_size) * chunk_size
+    keys_2d = jax.random.split(key, n).reshape(-1, chunk_size, 2)
+
+    all_samples, all_nfe = [], []
+    for chunk_keys in keys_2d:   # Python loop — overhead is negligible vs ODE cost
+        s, nfe = _sample_chunk(model, state, x_obs, chunk_keys, theta_dim, rtol, atol)
+        all_samples.append(s)
+        all_nfe.append(nfe)
+
+    return jnp.concatenate(all_samples, axis=0), jnp.mean(jnp.concatenate(all_nfe))

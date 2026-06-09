@@ -62,7 +62,7 @@ def save_json(data, path):
 # ---------------------------------------------------------------------------
 
 def compute_nfe_vs_tolerance(best_models, best_states, task_name, tolerances, key,
-                              n_samples=2_000):
+                              n_samples=2_000, chunk_size=500):
     """
     For each normalization type, measure mean NFE at each ODE tolerance
     using the best trained model (largest budget, last seed).
@@ -80,7 +80,7 @@ def compute_nfe_vs_tolerance(best_models, best_states, task_name, tolerances, ke
             key, subkey = jax.random.split(key)
             _, nfe = sample_posterior_with_stats(
                 model, state, x_obs, subkey, n_samples, theta_dim,
-                rtol=tol, atol=tol,
+                rtol=tol, atol=tol, chunk_size=chunk_size,
             )
             nfes.append(float(nfe))
             print(".", end="", flush=True)
@@ -115,7 +115,10 @@ def main():
                         help="increase to 256–512 on GPU")
     parser.add_argument("--eval_freq",   type=int, default=3)
     parser.add_argument("--patience",    type=int, default=7)
-    parser.add_argument("--eval_samples",type=int, default=5_000)
+    parser.add_argument("--eval_samples",type=int, default=2_000,
+                        help="posterior samples per eval (rounded to multiple of --sample_chunk)")
+    parser.add_argument("--sample_chunk", type=int, default=500,
+                        help="vmap chunk size for ODE sampling — trades GPU memory for latency")
     parser.add_argument("--results_dir", type=str, default="results")
     args = parser.parse_args()
 
@@ -162,12 +165,14 @@ def main():
             patience          = args.patience,
             seeds             = args.seeds,
             hidden_sizes      = args.hidden,
+            sample_chunk_size = args.sample_chunk,
         )
 
         print(f"\n  Computing NFE vs tolerance for {task}...")
         key, subkey = jax.random.split(key)
         nfe_vs_tol = compute_nfe_vs_tolerance(
             best_models, best_states, task, nfe_tolerances, subkey,
+            chunk_size=args.sample_chunk,
         )
 
         save_json(results,       results_dir / f"{task}_metrics.json")

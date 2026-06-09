@@ -109,7 +109,7 @@ def run_benchmark(
     train_fraction: float = 0.95,
     max_epochs: int = 100,
     eval_freq: int = 5,
-    eval_samples: int = 5_000,
+    eval_samples: int = 2_000,
     batch_size: int = 64,
     learning_rate: float = 3e-4,
     sigma_min: float = 1e-4,
@@ -117,6 +117,7 @@ def run_benchmark(
     patience: int = 3,
     seeds: list = [1, 2, 3, 4, 5],
     hidden_sizes: list = [32, 128, 512, 128, 32],
+    sample_chunk_size: int = 500,
 ):
     """
     Train FMPE for every (normalization, budget, seed) combination and
@@ -241,6 +242,7 @@ def run_benchmark(
                             samples_jax, nfe = sample_posterior_with_stats(
                                 model, state, x_obs, subkey, eval_samples,
                                 theta_dim, rtol=tol, atol=tol,
+                                chunk_size=sample_chunk_size,
                             )
                             samples_jax.block_until_ready()
                             inf_time = time.time() - t0

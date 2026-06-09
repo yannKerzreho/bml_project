@@ -42,10 +42,13 @@ upper bound on the global Lipschitz constant → smoother ODE → fewer solver s
 ```bash
 pip install -r requirements.txt
 
-# Small model, both tasks (CPU):
+# Small model, both tasks (CPU-friendly):
 python main.py
 
-# Medium model, both tasks (GPU / Colab T4):
+# Recommended for Colab T4 (~1.5 h total):
+python main.py --hidden 64 128 256 128 64 --batch_size 256
+
+# Large model (overkill for 2D/5D tasks, ~6 h):
 python main.py --hidden 128 512 1024 512 128 --batch_size 256
 
 # Then open analysis.ipynb to visualise results
