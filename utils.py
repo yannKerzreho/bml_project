@@ -19,6 +19,49 @@ from flow_matching import *
 def _to_jax(t: torch.Tensor) -> jax.Array:
     return jnp.array(t.numpy())
 
+
+def load_results(results_dir, task_name):
+    """
+    Load saved benchmark data from results/<task>_*.json.
+    JSON keys are always strings; this restores int budget keys so the
+    plot functions work identically whether data came from run_benchmark()
+    or from disk.
+
+    Returns
+    -------
+    metrics       : dict  metrics[norm][metric][budget_int] = [val per seed]
+    lip_histories : dict  lip_histories[norm][budget_int][seed_int] = [val per epoch]
+    nfe_vs_tol    : dict  {"tolerances": [...], "nfe_by_norm": {norm: [nfe ...]}}
+    config        : dict  run configuration (budgets, seeds, hidden_sizes, ...)
+    """
+    import json
+    from pathlib import Path
+    d = Path(results_dir)
+
+    with open(d / f"{task_name}_metrics.json")    as f: raw_metrics  = json.load(f)
+    with open(d / f"{task_name}_lipschitz.json")  as f: raw_lip      = json.load(f)
+    with open(d / f"{task_name}_nfe_vs_tol.json") as f: nfe_vs_tol   = json.load(f)
+    with open(d / "config.json")                  as f: config        = json.load(f)
+
+    # Restore int budget keys
+    metrics = {
+        norm: {
+            metric: {int(b): vals for b, vals in bdict.items()}
+            for metric, bdict in mdict.items()
+        }
+        for norm, mdict in raw_metrics.items()
+    }
+
+    lip_histories = {
+        norm: {
+            int(b): {int(s): vals for s, vals in sdict.items()}
+            for b, sdict in bdict.items()
+        }
+        for norm, bdict in raw_lip.items()
+    }
+
+    return metrics, lip_histories, nfe_vs_tol, config
+
 def _to_torch(x: jax.Array) -> torch.Tensor:
     return torch.from_numpy(np.array(x))
 
@@ -396,6 +439,46 @@ def plot_nfe_vs_tolerance(
         f"ODE stiffness: NFE vs tolerance — {task_name}\n"
         f"(model at 100 k budget, last seed)"
     )
+    ax.legend()
+    ax.grid(True, which="both", linestyle="--", alpha=0.4)
+    plt.tight_layout()
+    plt.show()
+
+
+# ---------------------------------------------------------------------------
+# Plot — NFE vs tolerance from saved JSON data  (used by analysis.ipynb)
+# ---------------------------------------------------------------------------
+
+def plot_nfe_vs_tolerance_from_data(nfe_vs_tol: dict, task_name: str = ""):
+    """
+    Same plot as plot_nfe_vs_tolerance but reads from the JSON saved by main.py
+    instead of running live ODE solves.  No JAX required.
+
+    Parameters
+    ----------
+    nfe_vs_tol : dict loaded from results/<task>_nfe_vs_tol.json
+                 {"tolerances": [...], "nfe_by_norm": {"none": [...], ...}}
+    """
+    norm_colors = {"none": "#d62728", "layer": "#1f77b4", "spectral": "#2ca02c"}
+    norm_labels = {"none": "No norm", "layer": "Layer Norm", "spectral": "Spectral Norm"}
+
+    tolerances  = nfe_vs_tol["tolerances"]
+    nfe_by_norm = nfe_vs_tol["nfe_by_norm"]
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    for norm, nfes in nfe_by_norm.items():
+        ax.plot(tolerances, nfes, color=norm_colors.get(norm, "gray"),
+                marker="o", label=norm_labels.get(norm, norm), linewidth=2)
+
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.invert_xaxis()
+    ax.set_xlabel("ODE tolerance  (tighter →)")
+    ax.set_ylabel("Mean NFE per sample")
+    title = "ODE stiffness: NFE vs tolerance"
+    if task_name:
+        title += f" — {task_name}"
+    ax.set_title(title + "\n(model at 100 k budget, last seed)")
     ax.legend()
     ax.grid(True, which="both", linestyle="--", alpha=0.4)
     plt.tight_layout()
