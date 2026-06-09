@@ -1,0 +1,29 @@
+{
+  "tasks": [
+    "two_moons"
+  ],
+  "budgets": [
+    1000,
+    10000,
+    100000
+  ],
+  "seeds": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "hidden_sizes": [
+    64,
+    128,
+    256,
+    128,
+    64
+  ],
+  "max_epochs": 100,
+  "batch_size": 256,
+  "eval_freq": 3,
+  "patience": 7,
+  "eval_samples": 2000
+}
