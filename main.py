@@ -168,15 +168,17 @@ def main():
             sample_chunk_size = args.sample_chunk,
         )
 
+        # Save training results immediately — before the NFE sweep so a crash
+        # there never loses the benchmark data.
+        save_json(results,       results_dir / f"{task}_metrics.json")
+        save_json(lip_histories, results_dir / f"{task}_lipschitz.json")
+
         print(f"\n  Computing NFE vs tolerance for {task}...")
         key, subkey = jax.random.split(key)
         nfe_vs_tol = compute_nfe_vs_tolerance(
             best_models, best_states, task, nfe_tolerances, subkey,
             chunk_size=args.sample_chunk,
         )
-
-        save_json(results,       results_dir / f"{task}_metrics.json")
-        save_json(lip_histories, results_dir / f"{task}_lipschitz.json")
         save_json(nfe_vs_tol,    results_dir / f"{task}_nfe_vs_tol.json")
 
     print(f"\nAll done. Results in {results_dir}/")

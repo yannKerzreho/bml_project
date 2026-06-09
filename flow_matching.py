@@ -149,7 +149,7 @@ batch_fmpe_loss = eqx.filter_vmap(
 )
 
 
-@eqx.filter_jit(donate="warn")
+@eqx.filter_jit
 def train_step(
     model: VectorFieldNetwork,
     state: eqx.nn.State,
