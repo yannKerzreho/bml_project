@@ -59,7 +59,8 @@ Three cells are all you need:
 # 1 — Clone & install
 !git clone https://github.com/yannKerzreho/bml_project.git
 %cd bml_project
-!pip install -q equinox diffrax optax sbibm tqdm
+!pip install -q equinox diffrax optax tqdm
+# sbibm is no longer a dependency — simulators & C2ST are implemented in tasks.py
 
 # 2 — Run (medium model, GPU)
 !python main.py --hidden 128 512 1024 512 128 --batch_size 256

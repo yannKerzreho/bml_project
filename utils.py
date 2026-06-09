@@ -5,11 +5,10 @@ import optax
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
-import sbibm
-from sbibm.metrics import c2st
 from collections import defaultdict
 from tqdm.auto import tqdm
 from flow_matching import *
+from tasks import get_task, c2st
 
 
 # ---------------------------------------------------------------------------
@@ -139,7 +138,7 @@ def run_benchmark(
     lip_histories  : {norm: {budget: {seed: [lip_val per eval epoch]}}}
     """
     print(f"=== Benchmark: {task_name}  |  arch={hidden_sizes} ===")
-    task      = sbibm.get_task(task_name)
+    task      = get_task(task_name)
     theta_dim = task.dim_parameters
     x_dim     = task.dim_data
     reference = task.get_reference_posterior_samples(num_observation=1)
@@ -407,7 +406,7 @@ def plot_nfe_vs_tolerance(
     if tolerances is None:
         tolerances = [1e-2, 3e-3, 1e-3, 3e-4, 1e-4, 3e-5, 1e-5, 1e-6, 1e-7]
 
-    task      = sbibm.get_task(task_name)
+    task      = get_task(task_name)
     theta_dim = task.dim_parameters
     x_obs     = _to_jax(task.get_observation(num_observation=1)).squeeze(0)
 

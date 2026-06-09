@@ -26,8 +26,7 @@ from collections import defaultdict
 
 import numpy as np
 import jax
-import sbibm
-
+from tasks import get_task
 from utils import (
     run_benchmark,
     sample_posterior_with_stats,
@@ -68,7 +67,7 @@ def compute_nfe_vs_tolerance(best_models, best_states, task_name, tolerances, ke
     For each normalization type, measure mean NFE at each ODE tolerance
     using the best trained model (largest budget, last seed).
     """
-    task      = sbibm.get_task(task_name)
+    task      = get_task(task_name)
     theta_dim = task.dim_parameters
     x_obs     = _to_jax(task.get_observation(num_observation=1)).squeeze(0)
 

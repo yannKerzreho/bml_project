@@ -1,11 +1,16 @@
-matplotlib
-scikit-learn
-tqdm
+# JAX ecosystem  (versions are mutually compatible as of 2025)
 jax
-equinox
-diffrax
-optax
-sbibm
+equinox>=0.11.10
+diffrax>=0.7.2
+optax>=0.2.8
+
+# Numerics / ML
 torch
 numpy
+scikit-learn
+pandas
+
+# Plotting / misc
+matplotlib
+tqdm
 ipywidgets
