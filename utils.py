@@ -153,6 +153,12 @@ def run_benchmark(
     norm_types = ["none", "layer", "spectral"]
     tolerances = [1e-3, 1e-5, 1e-7]
 
+    # Create the optimizer ONCE so eqx.filter_jit sees the same Python object on
+    # every call to train_step.  filter_jit hashes non-array leaves as static cache
+    # keys; a new optax.adam() object per (norm, budget, seed) would produce 45
+    # distinct hashes → 45 recompilations instead of 3 (one per model structure).
+    optim = optax.adam(learning_rate)
+
     for norm in norm_types:
         print(f"\n{'='*60}\n  Normalization: {norm.upper()}\n{'='*60}")
 
@@ -186,10 +192,12 @@ def run_benchmark(
                     theta_dim, x_dim, hidden_sizes,
                     depth_per_block=2, key=key_model, norm_type=norm,
                 )
-                optim     = optax.adam(learning_rate)
                 opt_state = optim.init(eqx.filter(model, eqx.is_inexact_array))
 
-                num_batches       = int(np.ceil(num_train / batch_size))
+                # Floor division drops the last incomplete batch so theta_batch always
+                # has shape (batch_size, D).  A smaller last batch would produce a
+                # different shape → XLA recompile of train_step on every epoch.
+                num_batches       = num_train // batch_size
                 best_c2st_tight   = float("inf")
                 epochs_no_improve = 0
                 best_metrics      = {}

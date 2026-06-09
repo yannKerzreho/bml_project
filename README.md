@@ -56,16 +56,20 @@ python main.py --hidden 128 512 1024 512 128 --batch_size 256
 Three cells are all you need:
 
 ```python
-# 1 — Clone & install
-!git clone https://github.com/yannKerzreho/bml_project.git
-%cd bml_project
-!pip install -q equinox diffrax optax tqdm
-# sbibm is no longer a dependency — simulators & C2ST are implemented in tasks.py
+# Cell 0 — fix JAX/CUDA plugin version (run once, then restart runtime)
+!pip install -q -U "jax[cuda12]"
+# → Runtime → Restart session, then run cells 1–3
 
-# 2 — Run (medium model, GPU)
+# Cell 1 — clone & install
+!git clone https://github.com/yannKerzreho/bml_project.git 2>/dev/null || echo "already cloned"
+%cd /content/bml_project
+!pip install -q equinox diffrax optax tqdm
+import jax; print(jax.devices())
+
+# Cell 2 — run (medium model, GPU)
 !python main.py --hidden 128 512 1024 512 128 --batch_size 256
 
-# 3 — Push results
+# Cell 3 — push results
 !git config user.email "kzr.yann@gmail.com"
 !git config user.name "yannKerzreho"
 !git remote set-url origin https://YOUR_TOKEN@github.com/yannKerzreho/bml_project.git
@@ -107,4 +111,4 @@ python main.py --help
 [Equinox](https://github.com/patrick-kidger/equinox) ·
 [Diffrax](https://github.com/patrick-kidger/diffrax) (Dopri5 + PID) ·
 [Optax](https://github.com/google-deepmind/optax) ·
-[sbibm](https://github.com/sbi-benchmark/sbibm)
+scikit-learn (C2ST) · PyTorch (simulator / data pipeline)
