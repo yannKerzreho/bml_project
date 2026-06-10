@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 FMPE Normalization Benchmark — experiment runner
 =================================================
